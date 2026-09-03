@@ -41,7 +41,7 @@ class TagCompanionService : CompanionDeviceService() {
         when (event.getEvent()) {
             DevicePresenceEvent.EVENT_BLE_APPEARED -> {
                 Log.d(TAG, "Tracker IN RANGE (CompanionDevice)")
-                notifyLeftBehindService(LeftBehindService.ACTION_TRACKER_IN_RANGE)
+                notifyInRange(event.getAssociationId())
             }
             DevicePresenceEvent.EVENT_BLE_DISAPPEARED -> {
                 Log.d(TAG, "Tracker OUT OF RANGE (CompanionDevice)")
@@ -49,7 +49,7 @@ class TagCompanionService : CompanionDeviceService() {
             }
             DevicePresenceEvent.EVENT_BT_CONNECTED -> {
                 Log.d(TAG, "Tracker BT CONNECTED")
-                notifyLeftBehindService(LeftBehindService.ACTION_TRACKER_IN_RANGE)
+                notifyInRange(event.getAssociationId())
             }
             DevicePresenceEvent.EVENT_BT_DISCONNECTED -> {
                 Log.d(TAG, "Tracker BT DISCONNECTED")
@@ -64,13 +64,56 @@ class TagCompanionService : CompanionDeviceService() {
     @Suppress("DEPRECATION")
     override fun onDeviceAppeared(associationInfo: AssociationInfo) {
         Log.d(TAG, "Tracker appeared (legacy callback)")
-        notifyLeftBehindService(LeftBehindService.ACTION_TRACKER_IN_RANGE)
+        notifyInRange(associationInfo.getId())
     }
 
     @Suppress("DEPRECATION")
     override fun onDeviceDisappeared(associationInfo: AssociationInfo) {
         Log.d(TAG, "Tracker disappeared (legacy callback)")
         notifyOutOfRange()
+    }
+
+    /**
+     * Establish a stable device ID/name from the companion association, then notify
+     * LeftBehindService that the tracker is in range, passing the device ID along.
+     */
+    private fun notifyInRange(associationId: Int) {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val deviceId = establishDeviceIdentity(associationId)
+            val intent = Intent(this@TagCompanionService, LeftBehindService::class.java).apply {
+                action = LeftBehindService.ACTION_TRACKER_IN_RANGE
+                if (deviceId != null) {
+                    putExtra(LeftBehindService.EXTRA_DEVICE_ID, deviceId)
+                }
+            }
+            startForegroundService(intent)
+        }
+    }
+
+    /**
+     * Establish a stable device ID and name from the companion association so the
+     * rest of the app (Dashboard, History, LeftBehindService) can track this device.
+     *
+     * @return the established device ID, or null if it couldn't be determined.
+     */
+    private suspend fun establishDeviceIdentity(associationId: Int): String? {
+        if (associationId == DevicePresenceEvent.NO_ASSOCIATION) return null
+
+        val manager = getSystemService(CompanionDeviceManager::class.java)
+        val association = manager?.getMyAssociations()
+            ?.find { it.getId() == associationId }
+            ?: return null
+
+        // Use the MAC address as a stable device ID, falling back to the
+        // association ID if no MAC is available.
+        val mac = association.getDeviceMacAddress()?.toString()
+        val deviceId = mac ?: "association-${association.getId()}"
+        val deviceName = association.getDisplayName()?.toString() ?: "My Keys"
+
+        preferences.setDeviceId(deviceId)
+        preferences.setDeviceName(deviceName)
+        Log.d(TAG, "Established device identity: $deviceName ($deviceId)")
+        return deviceId
     }
 
     private fun notifyOutOfRange() {
@@ -82,13 +125,6 @@ class TagCompanionService : CompanionDeviceService() {
             }
             startForegroundService(intent)
         }
-    }
-
-    private fun notifyLeftBehindService(action: String) {
-        val intent = Intent(this, LeftBehindService::class.java).apply {
-            this.action = action
-        }
-        startForegroundService(intent)
     }
 
     companion object {

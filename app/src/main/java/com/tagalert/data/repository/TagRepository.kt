@@ -6,6 +6,7 @@ import com.tagalert.data.local.UserPreferences
 import com.tagalert.data.model.LocationHistory
 import com.tagalert.data.model.TrackedDevice
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,10 +34,27 @@ class TagRepository @Inject constructor(
         accuracy: Float,
         locationName: String? = null
     ) {
-        val device = deviceDao.getDeviceOnce(deviceId) ?: return
+        val now = System.currentTimeMillis()
+        val device = deviceDao.getDeviceOnce(deviceId)
+        if (device == null) {
+            // First time seeing this device — create it
+            deviceDao.upsertDevice(
+                TrackedDevice(
+                    id = deviceId,
+                    name = preferences.deviceName.first(),
+                    isOnline = true,
+                    lastSeenTimestamp = now,
+                    lastSeenLatitude = latitude,
+                    lastSeenLongitude = longitude,
+                    lastSeenAccuracy = accuracy,
+                    lastSeenLocationName = locationName
+                )
+            )
+            return
+        }
         deviceDao.updateDevice(
             device.copy(
-                lastSeenTimestamp = System.currentTimeMillis(),
+                lastSeenTimestamp = now,
                 lastSeenLatitude = latitude,
                 lastSeenLongitude = longitude,
                 lastSeenAccuracy = accuracy,

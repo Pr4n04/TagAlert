@@ -93,7 +93,7 @@ class LeftBehindService : Service() {
         when (intent?.action) {
             ACTION_START_SCANNING -> startScanning()
             ACTION_STOP_SCANNING -> stopScanning()
-            ACTION_TRACKER_IN_RANGE -> onTrackerInRange()
+            ACTION_TRACKER_IN_RANGE -> onTrackerInRange(intent)
             ACTION_TRACKER_OUT_OF_RANGE -> {
                 val countdown = intent.getIntExtra(EXTRA_COUNTDOWN_SECONDS, 90)
                 onTrackerOutOfRange(countdown)
@@ -194,7 +194,20 @@ class LeftBehindService : Service() {
         if (!deviceName.contains("UGREEN", ignoreCase = true)) return
 
         lastScanTime = System.currentTimeMillis()
-        onTrackerInRange()
+
+        // Establish the device ID from the scan result's MAC address so the
+        // BLE scan fallback path works even before the companion service runs.
+        val mac = result.device.address
+        if (mac != null && mac.isNotEmpty()) {
+            serviceScope.launch {
+                repository.preferences.setDeviceId(mac)
+                if (repository.preferences.deviceName.first().isEmpty()) {
+                    repository.preferences.setDeviceName(deviceName)
+                }
+            }
+        }
+
+        onTrackerInRange(deviceId = mac)
     }
 
     private fun scheduleNextScan() {
@@ -215,7 +228,7 @@ class LeftBehindService : Service() {
 
     // --- Presence State Management ---
 
-    private fun onTrackerInRange() {
+    private fun onTrackerInRange(intent: Intent? = null, deviceId: String? = null) {
         val wasOutOfRange = !isDeviceInRange
         isDeviceInRange = true
         lastScanTime = System.currentTimeMillis()
@@ -223,14 +236,29 @@ class LeftBehindService : Service() {
         // Cancel any active countdown
         cancelCountdown()
 
-        if (wasOutOfRange && currentEvent?.state == DevicePresenceState.LEFT_BEHIND) {
-            // Device recovered! Log it
-            serviceScope.launch {
-                val deviceId = repository.preferences.deviceId.first()
-                val location = locationHelper.getCurrentLocation()
+        serviceScope.launch {
+            // Use the explicitly passed device ID (from BLE scan), then the one
+            // passed by the companion service via intent, then the stored preference.
+            val intentDeviceId = intent?.getStringExtra(EXTRA_DEVICE_ID)
+            val resolvedDeviceId = deviceId
+                ?: (if (intentDeviceId != null && intentDeviceId.isNotEmpty()) intentDeviceId else null)
+                ?: repository.preferences.deviceId.first()
+            if (resolvedDeviceId.isEmpty()) return@launch
+
+            // Persist the device as online so the UI reflects "With you"
+            val location = locationHelper.getCurrentLocation()
+            repository.updateDeviceLastSeen(
+                resolvedDeviceId,
+                location?.latitude ?: 0.0,
+                location?.longitude ?: 0.0,
+                location?.accuracy ?: 0f
+            )
+
+            if (wasOutOfRange && currentEvent?.state == DevicePresenceState.LEFT_BEHIND) {
+                // Device recovered! Log it
                 repository.logLocation(
                     LocationHistory(
-                        deviceId = deviceId,
+                        deviceId = resolvedDeviceId,
                         latitude = location?.latitude ?: 0.0,
                         longitude = location?.longitude ?: 0.0,
                         accuracy = location?.accuracy ?: 0f,
@@ -238,8 +266,8 @@ class LeftBehindService : Service() {
                         recoveryTimestamp = System.currentTimeMillis()
                     )
                 )
+                currentEvent = null
             }
-            currentEvent = null
         }
     }
 
@@ -259,6 +287,11 @@ class LeftBehindService : Service() {
             val deviceId = repository.preferences.deviceId.first()
             val deviceName = repository.preferences.deviceName.first()
             val location = locationHelper.getCurrentLocation()
+
+            // Mark the device offline so the UI reflects the lost state
+            if (deviceId.isNotEmpty()) {
+                repository.markDeviceOffline(deviceId)
+            }
 
             currentEvent = LeftBehindEvent(
                 deviceId = deviceId,
@@ -454,5 +487,6 @@ class LeftBehindService : Service() {
         const val ACTION_I_AM_BACK = "com.tagalert.I_AM_BACK"
 
         const val EXTRA_COUNTDOWN_SECONDS = "countdown_seconds"
+        const val EXTRA_DEVICE_ID = "device_id"
     }
 }
