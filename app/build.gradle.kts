@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
@@ -44,13 +43,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-        // Pass the min Android API level to the Kotlin compiler so it
-        // doesn't warn about API-level-gated calls (CompanionDeviceService, etc.)
-        freeCompilerArgs = listOf("-android-min-sdk-version=28")
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -60,6 +52,14 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        // With built-in Kotlin, AGP automatically passes the min Android API
+        // level to the Kotlin compiler, so no manual -android-min-sdk-version
+        // flag is needed here.
     }
 }
 
@@ -84,14 +84,14 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.53.1")
-    ksp("com.google.dagger:hilt-android-compiler:2.53.1")
+    implementation("com.google.dagger:hilt-android:2.60.1")
+    ksp("com.google.dagger:hilt-android-compiler:2.60.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.8.4")
+    implementation("androidx.room:room-ktx:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")

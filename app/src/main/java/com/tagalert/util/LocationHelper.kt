@@ -7,6 +7,7 @@ import android.location.Location
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,7 +19,7 @@ import kotlin.coroutines.resume
  */
 @Singleton
 class LocationHelper @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val fusedClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(context)

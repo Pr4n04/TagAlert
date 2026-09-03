@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="31" />
 
     <!-- Location -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
@@ -55,12 +55,6 @@
         <!-- Left Behind Detection Service -->
         <service
             android:name=".service.LeftBehindService"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
-
-        <!-- BLE Scan Fallback Service -->
-        <service
-            android:name=".service.BleScanService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 

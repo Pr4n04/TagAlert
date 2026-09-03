@@ -185,6 +185,11 @@ class LeftBehindService : Service() {
     }
 
     private fun handleScanResult(result: ScanResult) {
+        // Accessing scan results requires BLUETOOTH_SCAN permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+            != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
         val deviceName = result.device.name ?: return
         if (!deviceName.contains("UGREEN", ignoreCase = true)) return
 
@@ -419,6 +424,13 @@ class LeftBehindService : Service() {
     }
 
     private fun stopScanning() {
+        // Stopping a scan requires BLUETOOTH_SCAN permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+            != PackageManager.PERMISSION_GRANTED) {
+            scanCallback = null
+            countdownJob?.cancel()
+            return
+        }
         scanCallback?.let { callback ->
             try {
                 scanner?.stopScan(callback)

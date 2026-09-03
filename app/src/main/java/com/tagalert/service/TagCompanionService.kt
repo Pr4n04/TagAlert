@@ -4,6 +4,7 @@ import android.companion.AssociationInfo
 import android.companion.CompanionDeviceManager
 import android.companion.DevicePresenceEvent
 import android.companion.CompanionDeviceService
+import android.annotation.TargetApi
 import android.content.Intent
 import android.os.Build
 import android.util.Log
@@ -24,16 +25,20 @@ import javax.inject.Inject
  *
  * On Android 16+ (API 36): uses onDevicePresenceEvent()
  * On older: uses onDeviceAppeared() / onDeviceDisappeared()
+ *
+ * The companion device APIs require Android 16+ (API 36); this service is only
+ * registered on devices that support the companion device feature.
  */
+@TargetApi(36)
 @AndroidEntryPoint
 class TagCompanionService : CompanionDeviceService() {
 
     @Inject lateinit var preferences: UserPreferences
 
     override fun onDevicePresenceEvent(event: DevicePresenceEvent) {
-        Log.d(TAG, "Device presence event: ${event.eventType}")
+        Log.d(TAG, "Device presence event: ${event.getEvent()}")
 
-        when (event.eventType) {
+        when (event.getEvent()) {
             DevicePresenceEvent.EVENT_BLE_APPEARED -> {
                 Log.d(TAG, "Tracker IN RANGE (CompanionDevice)")
                 notifyLeftBehindService(LeftBehindService.ACTION_TRACKER_IN_RANGE)
@@ -51,7 +56,7 @@ class TagCompanionService : CompanionDeviceService() {
                 notifyOutOfRange()
             }
             else -> {
-                Log.d(TAG, "Other event: ${event.eventType}")
+                Log.d(TAG, "Other event: ${event.getEvent()}")
             }
         }
     }
@@ -71,7 +76,7 @@ class TagCompanionService : CompanionDeviceService() {
     private fun notifyOutOfRange() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val countdown = preferences.countdownSeconds.first()
-            val intent = Intent(this, LeftBehindService::class.java).apply {
+            val intent = Intent(this@TagCompanionService, LeftBehindService::class.java).apply {
                 action = LeftBehindService.ACTION_TRACKER_OUT_OF_RANGE
                 putExtra(LeftBehindService.EXTRA_COUNTDOWN_SECONDS, countdown)
             }
