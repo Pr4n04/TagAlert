@@ -46,7 +46,7 @@ object TimeUtils {
             cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) -> "Today"
             cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
             cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR) - 1 -> "Yesterday"
-            else SimpleDateFormat("EEE, dd MMM", Locale.getDefault()).format(Date(timestamp))
+            else -> SimpleDateFormat("EEE, dd MMM", Locale.getDefault()).format(Date(timestamp))
         }
     }
 }
