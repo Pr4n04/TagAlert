@@ -3,6 +3,8 @@ package com.tagalert.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tagalert.data.local.UserPreferences
+import com.tagalert.data.model.TrackedDevice
+import com.tagalert.data.repository.TagRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -10,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val preferences: UserPreferences
+    private val preferences: UserPreferences,
+    private val repository: TagRepository
 ) : ViewModel() {
 
     val countdownSeconds: StateFlow<Int> = preferences.countdownSeconds
@@ -52,6 +55,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferences.setDeviceName(name)
             preferences.setDeviceId(id)
+            // Create the device in the database so the dashboard shows it
+            repository.upsertDevice(
+                TrackedDevice(
+                    id = id,
+                    name = name,
+                    isOnline = true,
+                    lastSeenTimestamp = System.currentTimeMillis()
+                )
+            )
         }
     }
 
