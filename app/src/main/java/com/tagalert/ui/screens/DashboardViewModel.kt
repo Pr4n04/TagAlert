@@ -22,11 +22,11 @@ class DashboardViewModel @Inject constructor(
     val deviceName: StateFlow<String> = preferences.deviceName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "My Keys")
 
-    val countdownSeconds: Int
-        get() = 90 // Default, observed via preferences
+    val countdownSeconds: StateFlow<Int> = preferences.countdownSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 90)
 
-    val vibrationEnabled: Boolean
-        get() = true // Observed via preferences
+    val vibrationEnabled: StateFlow<Boolean> = preferences.vibrationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private val _lastSeenText = MutableStateFlow("")
     val lastSeenText: StateFlow<String> = _lastSeenText.asStateFlow()
@@ -55,9 +55,9 @@ class DashboardViewModel @Inject constructor(
                             }
                             _lastSeenLocation.value = device.lastSeenLocationName ?: buildString {
                                 device.lastSeenLatitude?.let { lat ->
-                                    append(String.format("%.4f", lat))
+                                    append(String.format(java.util.Locale.US, "%.4f", lat))
                                     device.lastSeenLongitude?.let { lon ->
-                                        append(", ${String.format("%.4f", lon)}")
+                                        append(", ${String.format(java.util.Locale.US, "%.4f", lon)}")
                                     }
                                 }
                             }

@@ -43,11 +43,11 @@ class HistoryViewModel @Inject constructor(
                 locationName?.let { append(it) }
                 if (latitude != 0.0 || longitude != 0.0) {
                     if (isNotEmpty()) append(" · ")
-                    append(String.format("%.4f, %.4f", latitude, longitude))
+                    append(String.format(java.util.Locale.US, "%.4f, %.4f", latitude, longitude))
                 }
                 if (accuracy > 0) {
                     if (isNotEmpty()) append(" · ")
-                    append("±${String.format("%.0f", accuracy)}m")
+                    append("±${String.format(java.util.Locale.US, "%.0f", accuracy)}m")
                 }
             },
             timeText = TimeUtils.formatTimestamp(timestamp),

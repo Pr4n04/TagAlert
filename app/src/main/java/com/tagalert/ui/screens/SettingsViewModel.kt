@@ -44,6 +44,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { preferences.setDeviceName(name) }
     }
 
+    fun setDeviceId(id: String) {
+        viewModelScope.launch { preferences.setDeviceId(id) }
+    }
+
+    fun registerManualDevice(name: String, id: String) {
+        viewModelScope.launch {
+            preferences.setDeviceName(name)
+            preferences.setDeviceId(id)
+        }
+    }
+
     fun setSafeZonesEnabled(enabled: Boolean) {
         viewModelScope.launch { preferences.setSafeZonesEnabled(enabled) }
     }

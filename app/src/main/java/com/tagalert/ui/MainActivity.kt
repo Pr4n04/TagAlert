@@ -1,10 +1,12 @@
 package com.tagalert.ui
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.tagalert.data.local.UserPreferences
+import com.tagalert.service.CompanionAssociationManager
 import com.tagalert.service.LeftBehindService
 import com.tagalert.ui.screens.DashboardScreen
 import com.tagalert.ui.screens.HistoryScreen
@@ -102,6 +105,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndStartServices() {
+        // Check if notification listener is enabled
+        if (!isNotificationListenerEnabled()) {
+            // Prompt user to enable notification listener for Find Hub detection
+            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            startActivity(intent)
+        }
+
         // Resume tracking if it was enabled before the app was closed
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val trackingEnabled = preferences.trackingEnabled.first()
@@ -109,6 +119,12 @@ class MainActivity : ComponentActivity() {
                 startTrackingService()
             }
         }
+    }
+
+    private fun isNotificationListenerEnabled(): Boolean {
+        val cn = ComponentName(this, com.tagalert.service.FindHubNotificationListener::class.java)
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat != null && flat.contains(cn.flattenToString())
     }
 
     private fun startTrackingService() {

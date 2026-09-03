@@ -61,6 +61,7 @@ class LeftBehindService : Service() {
     private var currentEvent: LeftBehindEvent? = null
     private var isDeviceInRange = false
     private var lastScanTime = 0L
+    private var cachedDeviceId = ""
 
     // Scan interval
     private val SCAN_INTERVAL_MS = 30_000L // 30 seconds
@@ -129,6 +130,11 @@ class LeftBehindService : Service() {
             return
         }
 
+        // Cache deviceId from preferences to avoid blocking the BLE callback
+        serviceScope.launch {
+            repository.preferences.deviceId.collect { cachedDeviceId = it }
+        }
+
         // Start callback-based scan
         startCallbackScan()
 
@@ -191,21 +197,39 @@ class LeftBehindService : Service() {
             return
         }
         val deviceName = result.device.name ?: ""
-        // Match the Ugreen Finder Pro by name (case-insensitive). Also log every
-        // scan result so we can diagnose if the device isn't being seen.
-        Log.d(TAG, "BLE scan result: name='$deviceName' addr=${result.device.address}")
-        if (!deviceName.contains("UGREEN", ignoreCase = true)) return
+        val deviceAddress = result.device.address ?: ""
+
+        // Log every scan result for debugging
+        Log.d(TAG, "BLE scan result: name='$deviceName' addr=$deviceAddress rssi=${result.rssi}")
+
+        // Check if this device matches our tracked device
+        val trackedDeviceId = cachedDeviceId
+
+        // Match by MAC address (if we have one stored) or by name
+        val isMatch = when {
+            trackedDeviceId.isNotEmpty() && deviceAddress == trackedDeviceId -> true
+            deviceName.contains("UGREEN", ignoreCase = true) -> true
+            deviceName.contains("Finder", ignoreCase = true) -> true
+            deviceName.contains("Tag", ignoreCase = true) -> true
+            // Find Hub trackers may use service UUIDs - check for Google Find Hub service
+            result.scanRecord?.serviceUuids?.any { uuid ->
+                uuid.toString().contains("FE6C", ignoreCase = true) || // Find My Device service
+                uuid.toString().contains("FE2C", ignoreCase = true)   // Apple Find My service
+            } == true -> true
+            else -> false
+        }
+
+        if (!isMatch) return
 
         lastScanTime = System.currentTimeMillis()
 
-        // Establish the device ID from the scan result's MAC address so the
-        // BLE scan fallback path works even before the companion service runs.
+        // Establish the device ID from the scan result's MAC address
         val mac = result.device.address
         if (mac != null && mac.isNotEmpty()) {
             serviceScope.launch {
                 repository.preferences.setDeviceId(mac)
                 if (repository.preferences.deviceName.first().isEmpty()) {
-                    repository.preferences.setDeviceName(deviceName)
+                    repository.preferences.setDeviceName(deviceName.ifEmpty { "My Tracker" })
                 }
             }
         }

@@ -42,6 +42,8 @@ fun DashboardScreen(
     val lastSeenText by viewModel.lastSeenText.collectAsState()
     val deviceState by viewModel.deviceState.collectAsState()
     val lastSeenLocation by viewModel.lastSeenLocation.collectAsState()
+    val countdownSeconds by viewModel.countdownSeconds.collectAsState()
+    val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -197,14 +199,14 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.Timer,
                     label = "Alert after",
-                    value = "${viewModel.countdownSeconds}s",
+                    value = "${countdownSeconds}s",
                     color = StatusYellow
                 )
                 InfoCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.Vibration,
                     label = "Vibration",
-                    value = if (viewModel.vibrationEnabled) "On" else "Off",
+                    value = if (vibrationEnabled) "On" else "Off",
                     color = StatusGreen
                 )
                 InfoCard(

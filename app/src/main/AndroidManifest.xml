@@ -27,11 +27,13 @@
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
     <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.ASSOCIATE_COMPANION_DEVICES" />
 
     <!-- Keep awake -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.software.companion_device_setup" android:required="true" />
 
     <application
         android:name=".TagAlertApp"
@@ -82,7 +84,21 @@
         <!-- Notification Action Receiver -->
         <receiver
             android:name=".service.NotificationActionReceiver"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tagalert.I_AM_BACK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Find Hub Notification Listener -->
+        <service
+            android:name=".service.FindHubNotificationListener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
     </application>
 
