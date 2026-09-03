@@ -48,7 +48,7 @@ android {
         jvmTarget = "17"
         // Pass the min Android API level to the Kotlin compiler so it
         // doesn't warn about API-level-gated calls (CompanionDeviceService, etc.)
-        freeCompilerArgs = ["-android-min-sdk-version=28"]
+        freeCompilerArgs = listOf("-android-min-sdk-version=28")
     }
 
     buildFeatures {
