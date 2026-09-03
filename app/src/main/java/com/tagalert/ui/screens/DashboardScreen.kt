@@ -176,7 +176,12 @@ fun DashboardScreen(
                     }
                     Switch(
                         checked = isTracking,
-                        onCheckedChange = onToggleTracking
+                        onCheckedChange = { enabled ->
+                            // Persist the tracking preference so it survives restarts
+                            viewModel.toggleTracking(enabled)
+                            // Start/stop the tracking service
+                            onToggleTracking(enabled)
+                        }
                     )
                 }
             }

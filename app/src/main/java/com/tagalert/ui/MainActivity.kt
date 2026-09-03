@@ -16,15 +16,24 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.tagalert.data.local.UserPreferences
 import com.tagalert.service.LeftBehindService
 import com.tagalert.ui.screens.DashboardScreen
 import com.tagalert.ui.screens.HistoryScreen
 import com.tagalert.ui.screens.SettingsScreen
 import com.tagalert.ui.theme.TagAlertTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var preferences: UserPreferences
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -93,11 +102,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndStartServices() {
-        // Background location needs separate request
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-            // User needs to manually grant this in settings
-            // We'll prompt them from the UI
+        // Resume tracking if it was enabled before the app was closed
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val trackingEnabled = preferences.trackingEnabled.first()
+            if (trackingEnabled) {
+                startTrackingService()
+            }
         }
     }
 

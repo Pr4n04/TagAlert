@@ -165,10 +165,10 @@ class LeftBehindService : Service() {
             }
         }
 
-        // Filter by device name pattern (Ugreen trackers advertise with specific names)
-        val filter = ScanFilter.Builder()
-            .setDeviceName("UGREEN") // Ugreen Finder Pro advertises with this name prefix
-            .build()
+        // Scan for all BLE devices and filter in the callback. The Ugreen Finder
+        // Pro uses a rotating MAC and may advertise under slightly different names,
+        // so an OS-level name filter can miss it.
+        val filter = ScanFilter.Builder().build()
 
         // Explicitly check BLUETOOTH_SCAN permission before scanning
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
@@ -190,7 +190,10 @@ class LeftBehindService : Service() {
             != PackageManager.PERMISSION_GRANTED) {
             return
         }
-        val deviceName = result.device.name ?: return
+        val deviceName = result.device.name ?: ""
+        // Match the Ugreen Finder Pro by name (case-insensitive). Also log every
+        // scan result so we can diagnose if the device isn't being seen.
+        Log.d(TAG, "BLE scan result: name='$deviceName' addr=${result.device.address}")
         if (!deviceName.contains("UGREEN", ignoreCase = true)) return
 
         lastScanTime = System.currentTimeMillis()
