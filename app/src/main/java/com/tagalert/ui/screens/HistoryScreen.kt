@@ -154,7 +154,7 @@ fun HistoryCard(entry: HistoryEntryUi) {
 
 data class HistoryEntryUi(
     val title: String,
-    subtitle: String = "",
+    val subtitle: String = "",
     val timeText: String,
     val statusColor: Color,
     val statusIcon: androidx.compose.ui.graphics.vector.ImageVector

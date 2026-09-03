@@ -7,6 +7,14 @@ import android.companion.CompanionDeviceService
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.tagalert.data.local.UserPreferences
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Companion Device Service — the primary, most battery-efficient layer.
@@ -17,7 +25,10 @@ import android.util.Log
  * On Android 16+ (API 36): uses onDevicePresenceEvent()
  * On older: uses onDeviceAppeared() / onDeviceDisappeared()
  */
+@AndroidEntryPoint
 class TagCompanionService : CompanionDeviceService() {
+
+    @Inject lateinit var preferences: UserPreferences
 
     override fun onDevicePresenceEvent(event: DevicePresenceEvent) {
         Log.d(TAG, "Device presence event: ${event.eventType}")
@@ -29,12 +40,7 @@ class TagCompanionService : CompanionDeviceService() {
             }
             DevicePresenceEvent.EVENT_BLE_DISAPPEARED -> {
                 Log.d(TAG, "Tracker OUT OF RANGE (CompanionDevice)")
-                val countdown = getPrefs().getInt("countdown_seconds", 90)
-                val intent = Intent(this, LeftBehindService::class.java).apply {
-                    action = LeftBehindService.ACTION_TRACKER_OUT_OF_RANGE
-                    putExtra(LeftBehindService.EXTRA_COUNTDOWN_SECONDS, countdown)
-                }
-                startForegroundService(intent)
+                notifyOutOfRange()
             }
             DevicePresenceEvent.EVENT_BT_CONNECTED -> {
                 Log.d(TAG, "Tracker BT CONNECTED")
@@ -42,12 +48,7 @@ class TagCompanionService : CompanionDeviceService() {
             }
             DevicePresenceEvent.EVENT_BT_DISCONNECTED -> {
                 Log.d(TAG, "Tracker BT DISCONNECTED")
-                val countdown = getPrefs().getInt("countdown_seconds", 90)
-                val intent = Intent(this, LeftBehindService::class.java).apply {
-                    action = LeftBehindService.ACTION_TRACKER_OUT_OF_RANGE
-                    putExtra(LeftBehindService.EXTRA_COUNTDOWN_SECONDS, countdown)
-                }
-                startForegroundService(intent)
+                notifyOutOfRange()
             }
             else -> {
                 Log.d(TAG, "Other event: ${event.eventType}")
@@ -64,12 +65,18 @@ class TagCompanionService : CompanionDeviceService() {
     @Suppress("DEPRECATION")
     override fun onDeviceDisappeared(associationInfo: AssociationInfo) {
         Log.d(TAG, "Tracker disappeared (legacy callback)")
-        val countdown = getPrefs().getInt("countdown_seconds", 90)
-        val intent = Intent(this, LeftBehindService::class.java).apply {
-            action = LeftBehindService.ACTION_TRACKER_OUT_OF_RANGE
-            putExtra(LeftBehindService.EXTRA_COUNTDOWN_SECONDS, countdown)
+        notifyOutOfRange()
+    }
+
+    private fun notifyOutOfRange() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val countdown = preferences.countdownSeconds.first()
+            val intent = Intent(this, LeftBehindService::class.java).apply {
+                action = LeftBehindService.ACTION_TRACKER_OUT_OF_RANGE
+                putExtra(LeftBehindService.EXTRA_COUNTDOWN_SECONDS, countdown)
+            }
+            startForegroundService(intent)
         }
-        startForegroundService(intent)
     }
 
     private fun notifyLeftBehindService(action: String) {
@@ -78,8 +85,6 @@ class TagCompanionService : CompanionDeviceService() {
         }
         startForegroundService(intent)
     }
-
-    private fun getPrefs() = getSharedPreferences("tagalert_settings", MODE_PRIVATE)
 
     companion object {
         const val TAG = "TagCompanionService"
