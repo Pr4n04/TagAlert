@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.*
@@ -11,12 +12,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.tagalert.R
 import com.tagalert.TagAlertApp
 import com.tagalert.data.local.UserPreferences
@@ -167,6 +170,13 @@ class LeftBehindService : Service() {
             .setDeviceName("UGREEN") // Ugreen Finder Pro advertises with this name prefix
             .build()
 
+        // Explicitly check BLUETOOTH_SCAN permission before scanning
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG, "BLUETOOTH_SCAN permission not granted")
+            return
+        }
+
         try {
             scanner?.startScan(listOf(filter), settings, scanCallback)
         } catch (e: SecurityException) {
@@ -177,14 +187,6 @@ class LeftBehindService : Service() {
     private fun handleScanResult(result: ScanResult) {
         val deviceName = result.device.name ?: return
         if (!deviceName.contains("UGREEN", ignoreCase = true)) return
-
-        val deviceId = repository.preferences.deviceId.first()
-
-        // Only update if this is our tracked device
-        if (deviceId.isNotEmpty() && result.device.address != deviceId) {
-            // Could be a different Ugreen device — skip
-            // In the future, we could match by more specific criteria
-        }
 
         lastScanTime = System.currentTimeMillis()
         onTrackerInRange()
@@ -300,10 +302,11 @@ class LeftBehindService : Service() {
         val event = currentEvent ?: return
         currentEvent = event.copy(state = DevicePresenceState.LEFT_BEHIND)
 
-        val vibration = repository.preferences.vibrationEnabled.first()
-        val sound = repository.preferences.soundEnabled.first()
-
-        sendLeftBehindNotification(event, vibration, sound)
+        serviceScope.launch {
+            val vibration = repository.preferences.vibrationEnabled.first()
+            val sound = repository.preferences.soundEnabled.first()
+            sendLeftBehindNotification(event, vibration, sound)
+        }
         Log.d(TAG, "LEFT BEHIND ALERT: ${event.deviceName}")
     }
 
